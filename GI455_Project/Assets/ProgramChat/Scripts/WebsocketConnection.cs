@@ -2,67 +2,213 @@
 using System.Collections.Generic;
 using UnityEngine;
 using WebSocketSharp;
+using System;
 using UnityEngine.UI;
 
 namespace ProgramChat
 {
     public class WebsocketConnection : MonoBehaviour
     {
-        private WebSocket websocket;
-        public Text myMessage, otherMessage, sendMessage;
-        private string iP, port;
-        private bool messageSender = false;
+        //private WebSocket websocket;
+        public Text myMessage, otherMessage, sendMessage, createRoomName, joinRoomName;
+        private string iP, port, username;
+        //private bool messageSender = false;
+        public GameObject rootMessenger, lobby, createRoom, joinRoom, createRoomNotice, joinRoomNotice, leaveRoomNotice;
+
+        public struct SocketEvent
+        {
+            public string eventName;
+            public string data;
+
+            public SocketEvent(string eventName, string data)
+            {
+                this.eventName = eventName;
+                this.data = data;
+            }
+        }
+
+        private WebSocket ws;
+
+        private string tempMessageString;
+
+        public delegate void DelegateHandle(SocketEvent result);
+        public DelegateHandle OnCreateRoom;
+        public DelegateHandle OnJoinRoom;
+        public DelegateHandle OnLeaveRoom;
 
         // Start is called before the first frame update
         void Start()
         {
             iP = PlayerPrefs.GetString("IP");
             port = PlayerPrefs.GetString("Port");
-            websocket = new WebSocket("ws://" + iP + ":" + port + "/");
+            username = PlayerPrefs.GetString("Username");
+            //username = "nos";
+            ws = new WebSocket("ws://" + iP + ":" + port + "/");
+            //ws = new WebSocket("ws://127.0.0.1:8080/");
 
-            websocket.OnMessage += OnMessage;
+            ws.OnMessage += OnMessage;
 
-            websocket.Connect();
+            ws.Connect();
+
+            lobby.SetActive(true);
+            createRoom.SetActive(false);
+            joinRoom.SetActive(false);
+            rootMessenger.SetActive(false);
+            createRoomNotice.SetActive(false);
+            joinRoomNotice.SetActive(false);
+            leaveRoomNotice.SetActive(false);
         }
 
         // Update is called once per frame
         void Update()
         {
-            if(Input.GetKeyDown(KeyCode.Return))
+            UpdateNotifyMessage();
+        }
+
+        public void ToCreateRoom()
+        {
+            lobby.SetActive(false);
+            createRoom.SetActive(true);
+        }
+
+        public void ToJoinRoom()
+        {
+            lobby.SetActive(false);
+            joinRoom.SetActive(true);
+        }
+
+        public void CreateRoom(string roomName)
+        {
+            roomName = createRoomName.text;
+            SocketEvent socketEvent = new SocketEvent("CreateRoom", roomName);
+
+            string toJsonStr = JsonUtility.ToJson(socketEvent);
+
+            ws.Send(toJsonStr);
+        }
+
+        public void JoinRoom(string roomName)
+        {
+            roomName = joinRoomName.text;
+            SocketEvent socketEvent = new SocketEvent("JoinRoom", roomName);
+
+            string toJsonStr = JsonUtility.ToJson(socketEvent);
+
+            ws.Send(toJsonStr);
+        }
+
+        public void LeaveRoom()
+        {
+            SocketEvent socketEvent = new SocketEvent("LeaveRoom", "");
+
+            string toJsonStr = JsonUtility.ToJson(socketEvent);
+
+            ws.Send(toJsonStr);
+        }
+
+        public void Disconnect()
+        {
+            if (ws != null)
+                ws.Close();
+        }
+
+        public void SendMessage(string message)
+        {
+
+        }
+
+        private void OnDestroy()
+        {
+            Disconnect();
+        }
+
+        private void UpdateNotifyMessage()
+        {
+            if (string.IsNullOrEmpty(tempMessageString) == false)
             {
-                websocket.Send("Number : " + Random.Range(0, 99999));
+                SocketEvent receiveMessageData = JsonUtility.FromJson<SocketEvent>(tempMessageString);
+
+                if (receiveMessageData.eventName == "CreateRoom")
+                {
+                    if (OnCreateRoom != null)
+                        OnCreateRoom(receiveMessageData);
+                    if(receiveMessageData.data == "fail")
+                    {
+                        createRoomNotice.SetActive(true);
+                    }
+                    else
+                    {
+                        createRoom.SetActive(false);
+                        rootMessenger.SetActive(true);
+                    }
+                }
+                else if (receiveMessageData.eventName == "JoinRoom")
+                {
+                    if (OnJoinRoom != null)
+                        OnJoinRoom(receiveMessageData);
+                    if (receiveMessageData.data == "fail")
+                    {
+                        joinRoomNotice.SetActive(true);
+                    }
+                    else
+                    {
+                        joinRoom.SetActive(false);
+                        rootMessenger.SetActive(true);
+                    }
+                }
+                else if (receiveMessageData.eventName == "LeaveRoom")
+                {
+                    if (OnLeaveRoom != null)
+                        OnLeaveRoom(receiveMessageData);
+                    if (receiveMessageData.data == "success")
+                    {
+                        lobby.SetActive(true);
+                        createRoom.SetActive(false);
+                        joinRoom.SetActive(false);
+                        rootMessenger.SetActive(false);
+                    }
+                    else if (receiveMessageData.data == "fail")
+                    {
+                        leaveRoomNotice.SetActive(true);
+                    }
+                }
+
+                tempMessageString = "";
             }
         }
 
-        public void OnDestroy()
+        private void OnMessage(object sender, MessageEventArgs messageEventArgs)
         {
-            if(websocket != null)
-            {
-                websocket.Close();
-            }
+            Debug.Log(messageEventArgs.Data);
+
+            tempMessageString = messageEventArgs.Data;
         }
 
-        public void OnMessage(object sender, MessageEventArgs messageEventArgs)
+        public void CreateRoomNotice()
         {
-            if(messageSender == true)
-            {
-                myMessage.alignment = TextAnchor.LowerRight;
-                otherMessage.text += "\n";
-                myMessage.text += "\n" + messageEventArgs.Data;
-                messageSender = false;
-            }
-            else
-            {
-                otherMessage.alignment = TextAnchor.LowerLeft;
-                myMessage.text += "\n";
-                otherMessage.text += "\n" + messageEventArgs.Data;
-            }
+            createRoomNotice.SetActive(false);
         }
 
-        public void Send()
+        public void JoinRoomNotice()
         {
-            messageSender = true;
-            websocket.Send(sendMessage.text);
+            joinRoomNotice.SetActive(false);
+        }
+
+        public void LeaveRoomNotice()
+        {
+            leaveRoomNotice.SetActive(false);
+        }
+
+        public void CreateRoomBack()
+        {
+            lobby.SetActive(true);
+            createRoom.SetActive(false);
+        }
+
+        public void JoinRoomBack()
+        {
+            lobby.SetActive(true);
+            joinRoom.SetActive(false);
         }
     }
 }

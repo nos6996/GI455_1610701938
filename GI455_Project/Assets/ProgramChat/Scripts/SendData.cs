@@ -6,7 +6,7 @@ using UnityEngine.SceneManagement;
 
 public class SendData : MonoBehaviour
 {
-    public Text iP, port;
+    public Text iP, port, username;
     // Start is called before the first frame update
     void Start()
     {
@@ -23,6 +23,7 @@ public class SendData : MonoBehaviour
     {
         PlayerPrefs.SetString("IP", iP.text);
         PlayerPrefs.SetString("Port", port.text);
+        PlayerPrefs.SetString("Username", username.text);
         SceneManager.LoadScene("ProgramChat");
     }
 }
