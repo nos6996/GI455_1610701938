@@ -10,10 +10,18 @@ namespace ProgramChat
     public class WebsocketConnection : MonoBehaviour
     {
         //private WebSocket websocket;
-        public Text myMessage, otherMessage, sendMessage, createRoomName, joinRoomName;
+        public Text sendText, receiveText, inputText, createRoomName, joinRoomName, userNameRegis, userIDRegis, passwordRegis,
+            rePasswordRegis, userIDLogIn, passwordLogIn, userNameTxt;
         private string iP, port, username;
         //private bool messageSender = false;
-        public GameObject rootMessenger, lobby, createRoom, joinRoom, createRoomNotice, joinRoomNotice, leaveRoomNotice;
+        public GameObject rootMessenger, lobby, createRoom, joinRoom, createRoomNotice, joinRoomNotice, leaveRoomNotice, login,
+            register, registerFail, loginFail, userName;
+
+        class MessageData
+        {
+            public string username;
+            public string message;
+        }
 
         public struct SocketEvent
         {
@@ -39,30 +47,51 @@ namespace ProgramChat
         // Start is called before the first frame update
         void Start()
         {
-            iP = PlayerPrefs.GetString("IP");
-            port = PlayerPrefs.GetString("Port");
-            username = PlayerPrefs.GetString("Username");
+            //iP = PlayerPrefs.GetString("IP");
+            //port = PlayerPrefs.GetString("Port");
+            //username = PlayerPrefs.GetString("Username");
             //username = "nos";
-            ws = new WebSocket("ws://" + iP + ":" + port + "/");
-            //ws = new WebSocket("ws://127.0.0.1:8080/");
+            //ws = new WebSocket("ws://" + iP + ":" + port + "/");
+            ws = new WebSocket("ws://127.0.0.1:8080/");
 
             ws.OnMessage += OnMessage;
 
             ws.Connect();
 
-            lobby.SetActive(true);
+            login.SetActive(true);
+            register.SetActive(false);
+            lobby.SetActive(false);
             createRoom.SetActive(false);
             joinRoom.SetActive(false);
             rootMessenger.SetActive(false);
             createRoomNotice.SetActive(false);
             joinRoomNotice.SetActive(false);
             leaveRoomNotice.SetActive(false);
+            registerFail.SetActive(false);
+            loginFail.SetActive(false);
+            userName.SetActive(false);
         }
 
         // Update is called once per frame
         void Update()
         {
             UpdateNotifyMessage();
+
+            if (string.IsNullOrEmpty(tempMessageString) == false)
+            {
+                MessageData receiveMessageData = JsonUtility.FromJson<MessageData>(tempMessageString);
+                if (receiveMessageData.username == username)
+                {
+                    sendText.text += "<color=yellow>" + receiveMessageData.username + "</color>" + " : " + receiveMessageData.message + "\n";
+                    receiveText.text += "\n";
+                }
+                else
+                {
+                    receiveText.text += "<color=yellow>" + receiveMessageData.username + "</color>" + " : " + receiveMessageData.message + "\n";
+                    sendText.text += "\n";
+                }
+                tempMessageString = "";
+            }
         }
 
         public void ToCreateRoom()
@@ -75,6 +104,161 @@ namespace ProgramChat
         {
             lobby.SetActive(false);
             joinRoom.SetActive(true);
+        }
+
+        public void ToLogin()
+        {
+            register.SetActive(false);
+            login.SetActive(true);
+        }
+
+        public void ToRegister()
+        {
+            login.SetActive(false);
+            register.SetActive(true);
+        }
+
+        public void ToLobby()
+        {
+            login.SetActive(false);
+            lobby.SetActive(true);
+        }
+
+        public void CloseRegisterFail()
+        {
+            registerFail.SetActive(false);
+        }
+
+        public void CloseLoginFail()
+        {
+            loginFail.SetActive(false);
+        }
+
+        public void RegisterName(string userName)
+        {
+            userName = userNameRegis.text;
+
+            if (userNameRegis.text == "" || userIDRegis.text == "" || passwordRegis.text == "" || rePasswordRegis.text == "" || passwordRegis.text != rePasswordRegis.text)
+            {
+                registerFail.SetActive(true);
+            }
+
+            else
+            {
+                SocketEvent socketEvent = new SocketEvent("RegisterName", userName);
+
+                string toJsonStr = JsonUtility.ToJson(socketEvent);
+
+                ws.Send(toJsonStr);
+            }
+        }
+
+        public void RegisterID(string userID)
+        {
+            userID = userIDRegis.text;
+
+            if (userNameRegis.text == "" || userIDRegis.text == "" || passwordRegis.text == "" || rePasswordRegis.text == "" || passwordRegis.text != rePasswordRegis.text)
+            {
+                registerFail.SetActive(true);
+            }
+
+            else
+            {
+                SocketEvent socketEvent = new SocketEvent("RegisterID", userID);
+
+                string toJsonStr = JsonUtility.ToJson(socketEvent);
+
+                ws.Send(toJsonStr);
+            }
+        }
+
+        public void RegisterPW(string password)
+        {
+            password = passwordRegis.text;
+
+            if (userNameRegis.text == "" || userIDRegis.text == "" || passwordRegis.text == "" || rePasswordRegis.text == "" || passwordRegis.text != rePasswordRegis.text)
+            {
+                registerFail.SetActive(true);
+            }
+
+            else
+            {
+                SocketEvent socketEvent = new SocketEvent("RegisterPW", password);
+
+                string toJsonStr = JsonUtility.ToJson(socketEvent);
+
+                ws.Send(toJsonStr);
+            }
+        }
+
+        public void Register()
+        {
+            if (userNameRegis.text == "" || userIDRegis.text == "" || passwordRegis.text == "" || rePasswordRegis.text == "" || passwordRegis.text != rePasswordRegis.text)
+            {
+                registerFail.SetActive(true);
+            }
+
+            else
+            {
+                SocketEvent socketEvent = new SocketEvent("Register", "");
+
+                string toJsonStr = JsonUtility.ToJson(socketEvent);
+
+                ws.Send(toJsonStr);
+            }
+        }
+
+        public void LogInID(string userID)
+        {
+            userID = userIDLogIn.text;
+            if(userIDLogIn.text == "" || passwordLogIn.text == "")
+            {
+                loginFail.SetActive(true);
+            }
+
+            else
+            {
+                SocketEvent socketEvent = new SocketEvent("LogInID", userID);
+
+                string toJsonStr = JsonUtility.ToJson(socketEvent);
+
+                ws.Send(toJsonStr);
+            }
+        }
+
+        public void LogInPW(string password)
+        {
+            password = passwordLogIn.text;
+            if (userIDLogIn.text == "" || passwordLogIn.text == "")
+            {
+                loginFail.SetActive(true);
+            }
+
+            else
+            {
+                SocketEvent socketEvent = new SocketEvent("LogInPW", password);
+
+                string toJsonStr = JsonUtility.ToJson(socketEvent);
+
+                ws.Send(toJsonStr);
+            }
+        }
+
+        public void LogIn()
+        {
+            if (userIDLogIn.text == "" || passwordLogIn.text == "")
+            {
+                loginFail.SetActive(true);
+            }
+
+            else
+            {
+                SocketEvent socketEvent = new SocketEvent("LogIn", "");
+
+                string toJsonStr = JsonUtility.ToJson(socketEvent);
+
+                ws.Send(toJsonStr);
+            }
         }
 
         public void CreateRoom(string roomName)
@@ -114,7 +298,17 @@ namespace ProgramChat
 
         public void SendMessage(string message)
         {
+            if (inputText.text == "" || ws.ReadyState != WebSocketState.Open)
+                return;
 
+            MessageData messageData = new MessageData();
+            messageData.username = username;
+            messageData.message = inputText.text;
+
+            string toJsonStr = JsonUtility.ToJson(messageData);
+
+            ws.Send(toJsonStr);
+            inputText.text = "";
         }
 
         private void OnDestroy()
@@ -170,6 +364,41 @@ namespace ProgramChat
                     else if (receiveMessageData.data == "fail")
                     {
                         leaveRoomNotice.SetActive(true);
+                    }
+                }
+                else if (receiveMessageData.eventName == "Register")
+                {
+                    if (OnLeaveRoom != null)
+                        OnLeaveRoom(receiveMessageData);
+                    if (receiveMessageData.data == "success")
+                    {
+                        ToLogin();
+                    }
+                    else if (receiveMessageData.data == "fail")
+                    {
+                        registerFail.SetActive(true);
+                    }
+                }
+                //else if (receiveMessageData.eventName == "UserName")
+                //{
+                //    if (OnLeaveRoom != null)
+                //        OnLeaveRoom(receiveMessageData);
+                //    username = receiveMessageData.data;
+                //    print(username);
+                //}
+                else if (receiveMessageData.eventName == "LogIn")
+                {
+                    if (OnLeaveRoom != null)
+                        OnLeaveRoom(receiveMessageData);
+                    if (receiveMessageData.data == "success")
+                    {
+                        ToLobby();
+                        //userNameTxt.text = username;
+                        //userName.SetActive(true);
+                    }
+                    else if (receiveMessageData.data == "fail")
+                    {
+                        loginFail.SetActive(true);
                     }
                 }
 
